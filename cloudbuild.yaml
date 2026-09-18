@@ -1,0 +1,55 @@
+# ==============================================================================
+# Cloud Build CI/CD Pipeline for AGY-KYC Checker
+# Automatically builds, tests, pushes to Artifact Registry, and deploys to Cloud Run.
+# ==============================================================================
+substitutions:
+  _REGION: 'asia-southeast2'
+  _PROJECT_ID: 'your-gcp-project-id'
+  _SERVICE_NAME: 'agy-kyc-checker'
+  _REPO_NAME: 'kyc-repo'
+  _IMAGE_TAG: 'latest'
+
+steps:
+  # 1. Build Container Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_SERVICE_NAME}:${_IMAGE_TAG}'
+      - '.'
+
+  # 2. Push Container Image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_SERVICE_NAME}:${_IMAGE_TAG}'
+
+  # 3. Deploy Service to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_SERVICE_NAME}:${_IMAGE_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--min-instances'
+      - '1'
+      - '--cpu'
+      - '2'
+      - '--memory'
+      - '2Gi'
+      - '--set-env-vars'
+      - 'GOOGLE_GENAI_USE_VERTEXAI=1,GOOGLE_CLOUD_PROJECT=${_PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,MODEL_ID=gemini-3.8-flash,OPS_USERNAME=ops,OPS_PASSWORD=workshop2026'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_SERVICE_NAME}:${_IMAGE_TAG}'
+
+
+options:
+  logging: LEGACY

@@ -1,0 +1,43 @@
+[project]
+name = "agy-workshop-kyc-checker"
+version = "0.1.0"
+description = "Indonesian e-KYC Checker using Google ADK, Gemini 3.8 Flash, AdaFace Biometrics, and Chroma"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "chromadb>=1.0.0",
+    "fastapi>=0.115.0",
+    "google-adk>=2.9.0",
+    "google-genai>=2.0.0",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.5",
+    "numpy>=1.26.0",
+    "onnxruntime>=1.20.0",
+    "opencv-python-headless>=4.10.0.84",
+    "pillow>=11.0.0",
+    "pydantic>=2.10.0",
+    "python-dotenv>=1.0.1",
+    "python-multipart>=0.0.20",
+    "truststore>=0.10.4",
+    "uniface>=4.0.0",
+    "uvicorn[standard]>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "kyc_agent"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

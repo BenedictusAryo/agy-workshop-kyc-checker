@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Camera Verification - AGY-KYC Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    /* Shutter flash animation */
+    @keyframes shutter-flash {
+      0% { opacity: 0; }
+      50% { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+    .shutter-active {
+      animation: shutter-flash 0.35s ease-out;
+    }
+
+    /* KTP Guideline Box with rounded corners and cutout shadow */
+    .ktp-guide-box {
+      aspect-ratio: 85.6 / 53.98; /* Standard ID-1 KTP ratio 1.586 */
+      box-shadow: 0 0 0 9999px rgba(10, 15, 29, 0.72);
+    }
+
+    /* Selfie Oval Guide */
+    .selfie-guide-oval {
+      aspect-ratio: 3 / 4;
+      border-radius: 50% 50% 45% 45%;
+      box-shadow: 0 0 0 9999px rgba(10, 15, 29, 0.72);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen py-8 px-4 flex flex-col justify-between">
+  <div class="max-w-3xl mx-auto w-full">
+    <!-- Header -->
+    <header class="flex items-center justify-between pb-6 mb-6 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center shadow-lg shadow-red-600/30">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-white flex items-center gap-2">
+            AGY-KYC Checker <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">Live Camera</span>
+          </h1>
+          <p class="text-xs text-slate-400">Direct Laptop / Mobile Webcam Capture</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2.5">
+        <a href="/kyc" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 border border-slate-700 transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          File Upload Mode
+        </a>
+        <a href="/kyc-monitoring" class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-medium text-slate-300 border border-slate-700 transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+          Ops Console
+        </a>
+      </div>
+    </header>
+
+    <!-- Stepper Navigation -->
+    <div class="flex items-center justify-between mb-6 px-2">
+      <div id="stepNav1" class="flex items-center gap-2 text-xs font-semibold text-red-400">
+        <span class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs">1</span>
+        <span>e-KTP Capture</span>
+      </div>
+      <div class="flex-1 h-0.5 bg-slate-800 mx-3">
+        <div id="stepProgress1" class="h-full bg-red-500 transition-all duration-300" style="width: 0%"></div>
+      </div>
+      <div id="stepNav2" class="flex items-center gap-2 text-xs font-semibold text-slate-500">
+        <span id="stepBadge2" class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">2</span>
+        <span>Selfie Portrait</span>
+      </div>
+      <div class="flex-1 h-0.5 bg-slate-800 mx-3">
+        <div id="stepProgress2" class="h-full bg-red-500 transition-all duration-300" style="width: 0%"></div>
+      </div>
+      <div id="stepNav3" class="flex items-center gap-2 text-xs font-semibold text-slate-500">
+        <span id="stepBadge3" class="w-6 h-6 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs">3</span>
+        <span>Review & Submit</span>
+      </div>
+    </div>
+
+    <!-- Error / Permission Alert -->
+    <div id="cameraAlert" class="hidden mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-3">
+      <svg class="w-5 h-5 shrink-0 text-rose-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div class="flex-1">
+        <p class="font-semibold text-white mb-0.5" id="alertTitle">Camera Access Needed</p>
+        <p class="text-rose-200/90 text-xs mb-2" id="alertMessage">Please grant browser permission to access your webcam to capture documents.</p>
+        <div class="flex gap-2">
+          <button onclick="startCamera()" class="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-[11px] font-semibold transition">
+            Retry Camera Access
+          </button>
+          <a href="/kyc" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-medium transition">
+            Use File Upload Instead
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Live Viewport Card -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 md:p-6 shadow-2xl relative">
+      
+      <!-- STEP 1 & 2: LIVE CAMERA VIEWPORT -->
+      <div id="cameraSection">
+        <!-- Viewport Toolbar -->
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 id="viewTitle" class="text-base font-bold text-white flex items-center gap-2">
+              <span>Step 1: Capture Indonesian e-KTP</span>
+            </h2>
+            <p id="viewSubtitle" class="text-xs text-slate-400">Align your physical e-KTP card flat within the border guide.</p>
+          </div>
+          <!-- Device Selector -->
+          <div id="deviceSelectorWrapper" class="hidden">
+            <select id="cameraSelect" class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-red-500">
+            </select>
+          </div>
+        </div>
+
+        <!-- Video Frame Container -->
+        <div class="relative w-full aspect-[4/3] sm:aspect-[16/9] bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
+          
+          <!-- Live Video Stream -->
+          <video id="webcamVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+
+          <!-- Shutter Flash Effect -->
+          <div id="shutterFlash" class="absolute inset-0 bg-white pointer-events-none opacity-0"></div>
+
+          <!-- KTP Framing Guide Overlay -->
+          <div id="ktpGuideOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="ktp-guide-box w-[82%] sm:w-[68%] rounded-2xl border-2 border-dashed border-red-400/80 relative transition-all duration-300">
+              <!-- Corner Marks -->
+              <div class="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-red-500 rounded-tl-lg"></div>
+              <div class="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-red-500 rounded-tr-lg"></div>
+              <div class="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-red-500 rounded-bl-lg"></div>
+              <div class="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-red-500 rounded-br-lg"></div>
+              
+              <!-- Subtle Helper Text inside box -->
+              <div class="absolute bottom-3 inset-x-0 text-center">
+                <span class="px-2.5 py-0.5 rounded-full bg-slate-950/80 text-[10px] text-red-300 font-medium tracking-wide">
+                  e-KTP Card Border Guide
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selfie Oval Guide Overlay -->
+          <div id="selfieGuideOverlay" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="selfie-guide-oval w-[55%] sm:w-[38%] border-2 border-dashed border-red-400/80 relative transition-all duration-300">
+              <!-- Guide label -->
+              <div class="absolute bottom-4 inset-x-0 text-center">
+                <span class="px-2.5 py-0.5 rounded-full bg-slate-950/80 text-[10px] text-red-300 font-medium tracking-wide">
+                  Fit Face Inside Oval
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Captured Frozen Image (Review before next step) -->
+          <div id="frozenReview" class="hidden absolute inset-0 bg-black flex items-center justify-center">
+            <img id="frozenImg" class="w-full h-full object-contain" alt="Captured Frame">
+            <div class="absolute bottom-4 inset-x-0 flex items-center justify-center gap-3">
+              <button type="button" onclick="retakeCurrentStep()" class="px-4 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 text-xs font-semibold border border-slate-700 shadow-lg backdrop-blur transition flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Retake
+              </button>
+              <button type="button" onclick="confirmCurrentStep()" class="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-lg shadow-red-600/30 transition flex items-center gap-1.5">
+                <span id="confirmBtnText">Looks Good & Continue</span>
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Countdown Timer overlay -->
+          <div id="countdownOverlay" class="hidden absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <span id="countdownNumber" class="text-7xl font-extrabold text-white animate-ping">3</span>
+          </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div id="captureControls" class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="text-xs text-slate-400 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="cameraStatusText">Camera Active</span>
+          </div>
+
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <button 
+              type="button" 
+              id="snapBtn"
+              onclick="triggerCountdownSnap()" 
+              class="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-sm font-bold shadow-lg shadow-red-600/25 transition flex items-center justify-center gap-2 group"
+            >
+              <div class="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center group-hover:scale-110 transition">
+                <div class="w-2.5 h-2.5 rounded-full bg-white"></div>
+              </div>
+              <span id="snapBtnText">Capture e-KTP Photo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: FINAL REVIEW & SUBMIT -->
+      <div id="reviewSection" class="hidden">
+        <div class="text-center mb-6">
+          <h2 class="text-lg font-bold text-white mb-1">Verify Your Captured Documents</h2>
+          <p class="text-xs text-slate-400">Ensure text on e-KTP is crisp and your selfie face is unobstructed before submitting.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+          <!-- KTP Review Card -->
+          <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-red-400 uppercase tracking-wider">1. Indonesian e-KTP</span>
+              <button type="button" onclick="goToStep(1)" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                Retake
+              </button>
+            </div>
+            <div class="aspect-[16/10] bg-black/60 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+              <img id="reviewKtpImg" class="w-full h-full object-contain" alt="Captured KTP">
+            </div>
+          </div>
+
+          <!-- Selfie Review Card -->
+          <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-red-400 uppercase tracking-wider">2. Live Selfie Portrait</span>
+              <button type="button" onclick="goToStep(2)" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                Retake
+              </button>
+            </div>
+            <div class="aspect-[16/10] bg-black/60 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+              <img id="reviewSelfieImg" class="w-full h-full object-contain" alt="Captured Selfie">
+            </div>
+          </div>
+        </div>
+
+        <!-- Submission Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+          <p class="text-xs text-slate-500">
+            Encrypted end-to-end. Documents evaluated on CPU with AdaFace & Gemini 3.8 Flash.
+          </p>
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <button 
+              type="button" 
+              onclick="goToStep(1)" 
+              class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+            >
+              Start Over
+            </button>
+            <button 
+              type="button" 
+              id="submitKycBtn"
+              onclick="submitKycOnline()" 
+              class="w-full sm:w-auto px-7 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold shadow-lg shadow-red-600/30 transition flex items-center justify-center gap-2"
+            >
+              <svg id="submitSpinner" class="hidden w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span id="submitBtnText">Submit for Verification</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Hidden Canvas used for high-res snapshot -->
+    <canvas id="snapshotCanvas" class="hidden"></canvas>
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-8 text-center text-xs text-slate-600">
+    AGY-KYC Checker &bull; Workshop 2026 &bull; Powered by Google ADK & AdaFace Biometrics
+  </footer>
+
+  <script>
+    let currentStep = 1; // 1 = KTP, 2 = Selfie, 3 = Review
+    let currentStream = null;
+    let ktpBlob = null;
+    let selfieBlob = null;
+    let ktpDataUrl = null;
+    let selfieDataUrl = null;
+
+    const video = document.getElementById('webcamVideo');
+    const canvas = document.getElementById('snapshotCanvas');
+    const cameraAlert = document.getElementById('cameraAlert');
+    const alertTitle = document.getElementById('alertTitle');
+    const alertMessage = document.getElementById('alertMessage');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const deviceSelectorWrapper = document.getElementById('deviceSelectorWrapper');
+
+    // UI Elements
+    const cameraSection = document.getElementById('cameraSection');
+    const reviewSection = document.getElementById('reviewSection');
+    const ktpGuideOverlay = document.getElementById('ktpGuideOverlay');
+    const selfieGuideOverlay = document.getElementById('selfieGuideOverlay');
+    const frozenReview = document.getElementById('frozenReview');
+    const frozenImg = document.getElementById('frozenImg');
+    const captureControls = document.getElementById('captureControls');
+    const snapBtn = document.getElementById('snapBtn');
+    const snapBtnText = document.getElementById('snapBtnText');
+    const confirmBtnText = document.getElementById('confirmBtnText');
+    const viewTitle = document.getElementById('viewTitle');
+    const viewSubtitle = document.getElementById('viewSubtitle');
+    const shutterFlash = document.getElementById('shutterFlash');
+    const countdownOverlay = document.getElementById('countdownOverlay');
+    const countdownNumber = document.getElementById('countdownNumber');
+
+    // Start Camera
+    async function startCamera(deviceId = null) {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+
+      cameraAlert.classList.add('hidden');
+
+      const constraints = {
+        audio: false,
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          facingMode: deviceId ? undefined : (currentStep === 1 ? 'environment' : 'user')
+        }
+      };
+
+      if (deviceId) {
+        constraints.video.deviceId = { exact: deviceId };
+      }
+
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+        await video.play();
+
+        document.getElementById('cameraStatusText').textContent = "Camera Active";
+        await loadAvailableCameras();
+      } catch (err) {
+        console.error("Camera access error:", err);
+        cameraAlert.classList.remove('hidden');
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alertTitle.textContent = "Camera Access Blocked";
+          alertMessage.textContent = "Your browser has blocked camera permissions. Please click the camera icon in your address bar to allow camera access.";
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          alertTitle.textContent = "No Webcam Detected";
+          alertMessage.textContent = "No video input camera was found on your system. You can switch to File Upload mode.";
+        } else {
+          alertTitle.textContent = "Camera Initialization Error";
+          alertMessage.textContent = err.message || "Failed to start camera. Please verify device permissions.";
+        }
+      }
+    }
+
+    // Populate camera selection
+    async function loadAvailableCameras() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        
+        if (videoDevices.length > 1) {
+          deviceSelectorWrapper.classList.remove('hidden');
+          cameraSelect.innerHTML = '';
+          videoDevices.forEach((dev, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dev.deviceId;
+            opt.textContent = dev.label || `Camera ${idx + 1}`;
+            cameraSelect.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        console.log("Could not enumerate camera devices:", e);
+      }
+    }
+
+    cameraSelect.addEventListener('change', () => {
+      startCamera(cameraSelect.value);
+    });
+
+    // Countdown and Snap
+    function triggerCountdownSnap() {
+      let count = 2;
+      countdownNumber.textContent = count;
+      countdownOverlay.classList.remove('hidden');
+
+      const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          countdownNumber.textContent = count;
+        } else {
+          clearInterval(timer);
+          countdownOverlay.classList.add('hidden');
+          takeSnapshot();
+        }
+      }, 700);
+    }
+
+    // Take high-resolution snapshot from video stream
+    function takeSnapshot() {
+      // Trigger shutter flash
+      shutterFlash.classList.add('shutter-active');
+      setTimeout(() => shutterFlash.classList.remove('shutter-active'), 350);
+
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, width, height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      canvas.toBlob((blob) => {
+        if (currentStep === 1) {
+          ktpBlob = blob;
+          ktpDataUrl = dataUrl;
+        } else if (currentStep === 2) {
+          selfieBlob = blob;
+          selfieDataUrl = dataUrl;
+        }
+
+        // Freeze and show review
+        frozenImg.src = dataUrl;
+        frozenReview.classList.remove('hidden');
+        captureControls.classList.add('hidden');
+      }, 'image/jpeg', 0.95);
+    }
+
+    function retakeCurrentStep() {
+      frozenReview.classList.add('hidden');
+      captureControls.classList.remove('hidden');
+    }
+
+    function confirmCurrentStep() {
+      frozenReview.classList.add('hidden');
+      captureControls.classList.remove('hidden');
+
+      if (currentStep === 1) {
+        goToStep(2);
+      } else if (currentStep === 2) {
+        goToStep(3);
+      }
+    }
+
+    // Step Transition Manager
+    function goToStep(step) {
+      currentStep = step;
+      frozenReview.classList.add('hidden');
+      captureControls.classList.remove('hidden');
+
+      if (step === 1) {
+        cameraSection.classList.remove('hidden');
+        reviewSection.classList.add('hidden');
+
+        ktpGuideOverlay.classList.remove('hidden');
+        selfieGuideOverlay.classList.add('hidden');
+
+        viewTitle.innerHTML = `<span>Step 1: Capture Indonesian e-KTP</span>`;
+        viewSubtitle.textContent = "Align your physical e-KTP card flat within the border guide.";
+        snapBtnText.textContent = "Capture e-KTP Photo";
+        confirmBtnText.textContent = "Looks Good & Next Step";
+
+        document.getElementById('stepProgress1').style.width = '0%';
+        document.getElementById('stepProgress2').style.width = '0%';
+        document.getElementById('stepNav1').className = "flex items-center gap-2 text-xs font-semibold text-red-400";
+        document.getElementById('stepNav2').className = "flex items-center gap-2 text-xs font-semibold text-slate-500";
+        document.getElementById('stepNav3').className = "flex items-center gap-2 text-xs font-semibold text-slate-500";
+
+        if (!currentStream) startCamera();
+      } else if (step === 2) {
+        cameraSection.classList.remove('hidden');
+        reviewSection.classList.add('hidden');
+
+        ktpGuideOverlay.classList.add('hidden');
+        selfieGuideOverlay.classList.remove('hidden');
+
+        viewTitle.innerHTML = `<span>Step 2: Capture Live Selfie</span>`;
+        viewSubtitle.textContent = "Center your face in the oval guide with good lighting and open eyes.";
+        snapBtnText.textContent = "Capture Selfie Photo";
+        confirmBtnText.textContent = "Looks Good & Review";
+
+        document.getElementById('stepProgress1').style.width = '100%';
+        document.getElementById('stepProgress2').style.width = '0%';
+        document.getElementById('stepBadge2').className = "w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs";
+        document.getElementById('stepNav2').className = "flex items-center gap-2 text-xs font-semibold text-red-400";
+        document.getElementById('stepNav3').className = "flex items-center gap-2 text-xs font-semibold text-slate-500";
+
+        if (!currentStream) startCamera();
+      } else if (step === 3) {
+        // Stop camera tracks when entering review mode to turn off webcam indicator
+        if (currentStream) {
+          currentStream.getTracks().forEach(t => t.stop());
+          currentStream = null;
+        }
+
+        cameraSection.classList.add('hidden');
+        reviewSection.classList.remove('hidden');
+
+        document.getElementById('stepProgress1').style.width = '100%';
+        document.getElementById('stepProgress2').style.width = '100%';
+        document.getElementById('stepBadge3').className = "w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs";
+        document.getElementById('stepNav3').className = "flex items-center gap-2 text-xs font-semibold text-red-400";
+
+        document.getElementById('reviewKtpImg').src = ktpDataUrl;
+        document.getElementById('reviewSelfieImg').src = selfieDataUrl;
+      }
+    }
+
+    // Submit Webcam KYC to backend
+    async function submitKycOnline() {
+      if (!ktpBlob || !selfieBlob) {
+        alert("Both KTP and selfie captures are required before submitting.");
+        return;
+      }
+
+      const submitBtn = document.getElementById('submitKycBtn');
+      const submitSpinner = document.getElementById('submitSpinner');
+      const submitBtnText = document.getElementById('submitBtnText');
+
+      submitBtn.disabled = true;
+      submitSpinner.classList.remove('hidden');
+      submitBtnText.textContent = "Uploading & Analyzing...";
+
+      const formData = new FormData();
+      formData.append('ktp', ktpBlob, 'webcam_ktp.jpg');
+      formData.append('selfie', selfieBlob, 'webcam_selfie.jpg');
+
+      try {
+        const res = await fetch('/api/kyc/submit', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Submission failed");
+        }
+
+        // Redirect to status tracking URL
+        window.location.href = data.redirect_url;
+      } catch (err) {
+        alert("Submission error: " + err.message);
+        submitBtn.disabled = false;
+        submitSpinner.classList.add('hidden');
+        submitBtnText.textContent = "Submit for Verification";
+      }
+    }
+
+    // Cleanup tracks on page unload
+    window.addEventListener('beforeunload', () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+    });
+
+    // Start on step 1
+    startCamera();
+  </script>
+</body>
+</html>

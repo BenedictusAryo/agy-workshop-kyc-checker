@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ops Monitoring - AGY-KYC Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .badge-VERIFIED { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+    .badge-MANUAL_REVIEW { background-color: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+    .badge-FRAUD { background-color: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3); }
+    .badge-QUEUED, .badge-PROCESSING { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <!-- Top Navigation -->
+  <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center shadow-md shadow-red-600/30">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-white tracking-tight flex items-center gap-2">
+            AGY-KYC Operations Console
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Workshop 2026</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <a href="/kyc" target="_blank" class="text-xs text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Open KYC Upload Form
+        </a>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-xs text-slate-300 font-mono font-medium">{{ username }}</span>
+        </div>
+        <a href="/logout" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700">
+          Sign Out
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Header Summary -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Identity Verification Queue</h1>
+        <p class="text-xs text-slate-400 mt-1">Review flagged identities, evaluate AdaFace biometrics, and approve/reject submissions.</p>
+      </div>
+
+      <button onclick="fetchSubmissions()" class="self-start md:self-auto px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 flex items-center gap-2 transition">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Refresh Queue
+      </button>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex items-center gap-2 mb-6 border-b border-slate-800 pb-3">
+      <button onclick="setFilter('review')" id="tabReview" class="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600/20 text-red-400 border border-red-500/30 transition flex items-center gap-2">
+        <span>Needs Review & Fraud</span>
+        <span id="badgeReviewCount" class="px-1.5 py-0.2 rounded bg-red-500/30 text-[10px]">0</span>
+      </button>
+      <button onclick="setFilter('fraud')" id="tabFraud" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition">
+        Fraud Flagged
+      </button>
+      <button onclick="setFilter('verified')" id="tabVerified" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition">
+        Verified
+      </button>
+      <button onclick="setFilter('all')" id="tabAll" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition">
+        All Submissions
+      </button>
+    </div>
+
+    <!-- Table Container -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950/70 text-slate-400 uppercase font-semibold text-[11px] border-b border-slate-800">
+            <tr>
+              <th class="py-3.5 px-4">Tracking ID</th>
+              <th class="py-3.5 px-4">Applicant (KTP)</th>
+              <th class="py-3.5 px-4">Submitted At</th>
+              <th class="py-3.5 px-4">Biometric Match</th>
+              <th class="py-3.5 px-4">1:N Sybil Check</th>
+              <th class="py-3.5 px-4">System Status</th>
+              <th class="py-3.5 px-4">Ops Status</th>
+              <th class="py-3.5 px-4 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="submissionTableBody" class="divide-y divide-slate-800/80">
+            <tr>
+              <td colspan="8" class="text-center py-8 text-slate-500">Loading queue records...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Inspection Modal -->
+  <div id="inspectModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800 mb-6">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            Verification Inspector
+            <span id="modalTrackingId" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-red-400 border border-slate-700"></span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Triaged Biometric and Document Integrity Analysis</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 1:N Fraud Warning Banner if detected -->
+      <div id="modalDuplicateBanner" class="hidden mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
+        <svg class="w-5 h-5 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <div>
+          <strong class="font-semibold block text-rose-200">1:N Sybil Identity Alert</strong>
+          <span id="modalDuplicateReason"></span>
+        </div>
+      </div>
+
+      <!-- 3-Way Face Comparison Grid -->
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Biometric Triangulation</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <span class="text-[11px] font-medium text-slate-400 block mb-2">Original e-KTP</span>
+            <img id="modalKtpImg" class="h-40 mx-auto object-contain rounded-lg border border-slate-700/60" alt="Original KTP">
+          </div>
+
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <span class="text-[11px] font-medium text-slate-400 block mb-2">RetinaFace Aligned Crop</span>
+            <img id="modalCropImg" class="h-40 w-32 mx-auto object-cover rounded-lg border border-slate-700/60" alt="Cropped Face">
+          </div>
+
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <span class="text-[11px] font-medium text-slate-400 block mb-2">Applicant Live Selfie</span>
+            <img id="modalSelfieImg" class="h-40 mx-auto object-contain rounded-lg border border-slate-700/60" alt="Selfie">
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Biometric Scoring & Fraud Reasons -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <span class="text-[11px] text-slate-500 uppercase font-semibold">AdaFace Cosine Similarity</span>
+          <div class="flex items-baseline gap-2 mt-1">
+            <span id="modalSimilarity" class="text-2xl font-bold font-mono text-white">0%</span>
+            <span id="modalThresholdBadge" class="text-xs px-2 py-0.5 rounded-full border"></span>
+          </div>
+          <p id="modalAiExplanation" class="text-xs text-slate-400 mt-2 leading-relaxed"></p>
+        </div>
+
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <span class="text-[11px] text-slate-500 uppercase font-semibold">Detected Warnings / Fraud Signals</span>
+          <ul id="modalWarningsList" class="mt-2 text-xs space-y-1.5 text-slate-300">
+            <li class="text-slate-500 italic">No anomalies detected.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Extracted KTP OCR JSON Table -->
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">e-KTP Extracted Data (Gemini 3.8 Flash)</h3>
+        <div id="modalOcrTable" class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs bg-slate-950 p-4 rounded-xl border border-slate-800"></div>
+      </div>
+
+      <!-- Ops Agent Decision Box -->
+      <div class="pt-4 border-t border-slate-800">
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Ops Audit Notes</label>
+          <input type="text" id="opsNotesInput" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500" placeholder="Optional notes regarding this review...">
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+            Close
+          </button>
+          <button onclick="submitDecision('RESUBMIT')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/40 transition">
+            Request Re-upload
+          </button>
+          <button onclick="submitDecision('REJECT')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/40 transition">
+            Confirm Fraud / Reject
+          </button>
+          <button onclick="submitDecision('APPROVE')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 transition">
+            Approve as Match
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let currentFilter = "review";
+    let activeTrackingId = null;
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ['review', 'fraud', 'verified', 'all'].forEach(f => {
+        const tab = document.getElementById('tab' + f.charAt(0).toUpperCase() + f.slice(1));
+        if (tab) {
+          if (f === filter) {
+            tab.className = "px-4 py-2 rounded-xl text-xs font-semibold bg-red-600/20 text-red-400 border border-red-500/30 transition flex items-center gap-2";
+          } else {
+            tab.className = "px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-2";
+          }
+        }
+      });
+      fetchSubmissions();
+    }
+
+    async function fetchSubmissions() {
+      const tbody = document.getElementById('submissionTableBody');
+      try {
+        const res = await fetch(`/api/ops/submissions?filter=${currentFilter}`);
+        if (!res.ok) throw new Error("Failed to load submissions");
+        const data = await res.json();
+        const records = data.submissions || [];
+
+        // Update count badge
+        document.getElementById('badgeReviewCount').textContent = records.filter(r => r.status === 'MANUAL_REVIEW' || r.status === 'FRAUD').length;
+
+        if (records.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">No records found for current filter.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = records.map(r => {
+          const sim = r.similarity_score !== null && r.similarity_score !== undefined ? `${(r.similarity_score * 100).toFixed(1)}%` : "N/A";
+          const isDup = r.is_duplicate_face ? `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">SYBIL ALERT</span>` : `<span class="text-slate-500">Unique</span>`;
+          const created = r.created_at ? new Date(r.created_at).toLocaleTimeString() : "-";
+          const nama = r.nama || "UNEXTRACTED";
+          const nik = r.nik ? `${r.nik.slice(0, 6)}...` : "-";
+
+          return `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="py-3 px-4 font-mono font-semibold text-slate-200">${r.tracking_id}</td>
+              <td class="py-3 px-4">
+                <div class="font-medium text-white">${nama}</div>
+                <div class="text-[11px] text-slate-500 font-mono">${nik}</div>
+              </td>
+              <td class="py-3 px-4 text-slate-400 font-mono">${created}</td>
+              <td class="py-3 px-4 font-mono font-semibold text-slate-200">${sim}</td>
+              <td class="py-3 px-4">${isDup}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border badge-${r.status}">${r.status}</span>
+              </td>
+              <td class="py-3 px-4 font-mono text-[11px] text-slate-400">${r.ops_status || 'PENDING'}</td>
+              <td class="py-3 px-4 text-right">
+                <button onclick="inspectSubmission('${r.tracking_id}')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-red-600/30 text-slate-300 hover:text-red-300 border border-slate-700 transition">
+                  Inspect
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-rose-400">Error loading queue: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function inspectSubmission(trackingId) {
+      activeTrackingId = trackingId;
+      try {
+        const res = await fetch(`/api/ops/submissions/${trackingId}`);
+        if (!res.ok) throw new Error("Could not load details");
+        const data = await res.json();
+
+        document.getElementById('modalTrackingId').textContent = data.tracking_id;
+        document.getElementById('modalKtpImg').src = data.ktp_url || '';
+        document.getElementById('modalCropImg').src = data.crop_url || '';
+        document.getElementById('modalSelfieImg').src = data.selfie_url || '';
+
+        // Duplicate banner
+        const dupBanner = document.getElementById('modalDuplicateBanner');
+        if (data.is_duplicate_face) {
+          dupBanner.classList.remove('hidden');
+          document.getElementById('modalDuplicateReason').textContent = data.duplicate_notes || "Same face detected under multiple distinct NIKs.";
+        } else {
+          dupBanner.classList.add('hidden');
+        }
+
+        // Similarity
+        const sim = data.similarity_score !== null ? (data.similarity_score * 100).toFixed(1) : "0";
+        document.getElementById('modalSimilarity').textContent = `${sim}%`;
+        const badge = document.getElementById('modalThresholdBadge');
+        if (data.similarity_score >= 0.65) {
+          badge.textContent = "High Match (>=65%)";
+          badge.className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        } else if (data.similarity_score >= 0.45) {
+          badge.textContent = "Review Band (45-64%)";
+          badge.className = "text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        } else {
+          badge.textContent = "Low Match (<45%)";
+          badge.className = "text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        }
+
+        document.getElementById('modalAiExplanation').textContent = data.ai_explanation || "No explanation provided.";
+
+        // Warnings list
+        const warningsList = document.getElementById('modalWarningsList');
+        if (data.fraud_indicators_list && data.fraud_indicators_list.length > 0) {
+          warningsList.innerHTML = data.fraud_indicators_list.map(w => `<li class="text-rose-300 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>${w}</li>`).join('');
+        } else {
+          warningsList.innerHTML = `<li class="text-slate-500 italic">No anomalies detected.</li>`;
+        }
+
+        // OCR Table
+        const ocr = data.ocr_data || {};
+        const fields = [
+          { label: "NIK", val: data.nik },
+          { label: "Nama", val: data.nama },
+          { label: "Tempat Lahir", val: data.tempat_lahir },
+          { label: "Tgl Lahir", val: data.tgl_lahir },
+          { label: "Jenis Kelamin", val: data.jenis_kelamin },
+          { label: "Alamat", val: data.alamat },
+          { label: "Agama", val: data.agama },
+          { label: "Status Kawin", val: data.status_perkawinan },
+          { label: "Pekerjaan", val: data.pekerjaan },
+          { label: "Kewarganegaraan", val: data.kewarganegaraan },
+          { label: "Doc Quality", val: ocr.document_quality || "N/A" },
+        ];
+
+        document.getElementById('modalOcrTable').innerHTML = fields.map(f => `
+          <div class="p-2 rounded bg-slate-900 border border-slate-800">
+            <span class="text-[10px] text-slate-500 block uppercase font-mono">${f.label}</span>
+            <span class="text-slate-200 font-semibold truncate block">${f.val || '-'}</span>
+          </div>
+        `).join('');
+
+        document.getElementById('opsNotesInput').value = data.ops_notes || '';
+        document.getElementById('inspectModal').classList.remove('hidden');
+      } catch (err) {
+        alert("Error loading inspection data: " + err.message);
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('inspectModal').classList.add('hidden');
+      activeTrackingId = null;
+    }
+
+    async function submitDecision(decision) {
+      if (!activeTrackingId) return;
+      const notes = document.getElementById('opsNotesInput').value;
+
+      try {
+        const res = await fetch(`/api/ops/review/${activeTrackingId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision, notes }),
+        });
+
+        if (!res.ok) throw new Error("Failed to record decision");
+        closeModal();
+        fetchSubmissions();
+      } catch (err) {
+        alert("Action failed: " + err.message);
+      }
+    }
+
+    // Initial load
+    fetchSubmissions();
+  </script>
+</body>
+</html>

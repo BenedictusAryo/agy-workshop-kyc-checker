@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project KYC data and local models
+data/
+models/
+*.db
+*.sqlite
+*.sqlite3
+
